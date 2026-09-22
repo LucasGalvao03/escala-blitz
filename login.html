@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — Escala Blitz</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrap" style="max-width:360px; padding-top:70px;">
+  <header class="top" style="margin-bottom:24px;">
+    <div>
+      <h1>Escala Blitz</h1>
+      <p>Terceirizada · iMile Delivery — DC-PI2</p>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="panel">
+    <h2><span>Entrar</span></h2>
+    <form method="post">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label style="display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">Senha</label>
+      <input type="password" name="senha" autofocus required
+             style="width:100%;padding:9px 10px;border-radius:6px;border:1px solid var(--border);
+                    background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:14px;">
+      <button type="submit" class="primary" style="width:100%;">Entrar</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
