@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escala Blitz — DC-PI2</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Escala Blitz</h1>
+      <p>Terceirizada · iMile Delivery — DC-PI2</p>
+    </div>
+    <a class="btn small" href="{{ url_for('logout') }}">Sair</a>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <nav class="months">
+    {% for m in data.months %}
+      <a class="btn {{ 'active' if month and m.key == month.key else '' }}"
+         href="{{ url_for('ver_mes', month_key=m.key, op_idx=0) }}">{{ m.label }}</a>
+    {% endfor %}
+  </nav>
+
+  <form class="new-month-form" method="post" action="{{ url_for('adicionar_mes') }}">
+    <input type="month" name="month_key" required>
+    <select name="copiar">
+      <option value="sim">Copiar funcionários do último mês</option>
+      <option value="nao">Começar vazio</option>
+    </select>
+    <button type="submit" class="small">+ Adicionar mês</button>
+  </form>
+
+  {% if not month %}
+    <p>Nenhum mês cadastrado ainda. Use o formulário acima para criar o primeiro.</p>
+  {% else %}
+
+    {% if month.operations|length > 1 %}
+    <nav class="ops">
+      {% for o in month.operations %}
+        <a class="btn {{ 'active' if loop.index0 == op_idx else '' }}"
+           href="{{ url_for('ver_mes', month_key=month.key, op_idx=loop.index0) }}">{{ o.name }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+
+    <div class="toolbar">
+      <form method="post" action="{{ url_for('adicionar_operacao', month_key=month.key) }}" class="inline">
+        <input type="text" name="nome" placeholder="Nome da operação" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);">
+        <button type="submit" class="small">+ Operação</button>
+      </form>
+      <a class="btn small" href="{{ url_for('exportar', month_key=month.key, op_idx=op_idx) }}">Exportar Excel (.xlsx)</a>
+    </div>
+
+    <form method="post" action="{{ url_for('salvar', month_key=month.key, op_idx=op_idx) }}">
+      <div class="panel">
+        <h2><span>{{ op.name if month.operations|length > 1 else 'Escala — ' + month.label }}</span></h2>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-nome">Funcionário</th>
+                <th>Turno</th>
+                <th>Cargo</th>
+                {% for dk, wd, dn in day_labels %}
+                  <th>{{ wd }}<br>{{ dn }}</th>
+                {% endfor %}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for emp in op.employees %}
+              <tr>
+                <td class="col-nome">
+                  <input class="cell-input nome-input" name="nome_{{ loop.index0 }}" value="{{ emp.nome }}">
+                </td>
+                <td>
+                  <input class="cell-input turno-input" name="turno_{{ loop.index0 }}" value="{{ emp.turno }}">
+                </td>
+                <td>
+                  <input class="cell-input cargo-input" name="cargo_{{ loop.index0 }}" value="{{ emp.cargo }}">
+                </td>
+                {% for dk, wd, dn in day_labels %}
+                  {% set v = emp.dias.get(dk, "") %}
+                  <td>
+                    <select class="day-cell" data-v="{{ v }}" name="dia_{{ loop.index0 }}_{{ dk }}"
+                            onchange="this.setAttribute('data-v', this.value)">
+                      {% for opt in status_options %}
+                        <option value="{{ opt }}" {{ 'selected' if opt == v else '' }}>{{ status_labels[opt] }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                {% endfor %}
+                <td class="row-actions">
+                  <button type="submit" class="ghost small"
+                          formaction="{{ url_for('remover_funcionario', month_key=month.key, op_idx=op_idx, emp_idx=loop.index0) }}"
+                          formnovalidate
+                          onclick="return confirm('Remover {{ emp.nome }} da escala?');">✕</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="toolbar">
+          <button type="submit" class="small"
+                  formaction="{{ url_for('adicionar_funcionario', month_key=month.key, op_idx=op_idx) }}"
+                  formnovalidate>+ Adicionar funcionário</button>
+          <button type="submit" class="primary">Salvar alterações</button>
+        </div>
+
+        <div class="legend">
+          <span><i style="background:var(--c-T-bg);border:1px solid var(--c-T)"></i>T — Trabalhou</span>
+          <span><i style="background:var(--c-DSR-bg);border:1px solid var(--c-DSR)"></i>DSR</span>
+          <span><i style="background:var(--c-Folga-bg);border:1px solid var(--c-Folga)"></i>Folga</span>
+          <span><i style="background:var(--c-Falta-bg);border:1px solid var(--c-Falta)"></i>Falta</span>
+          <span><i style="background:var(--c-Atestado-bg);border:1px solid var(--c-Atestado)"></i>Atestado</span>
+          <span><i style="background:var(--c-Abono-bg);border:1px solid var(--c-Abono)"></i>Abono</span>
+          <span><i style="background:var(--c-empty-bg);border:1px solid var(--c-empty)"></i>Sem vínculo no dia</span>
+        </div>
+      </div>
+    </form>
+
+    <div class="panel">
+      <h2>Resumo do período</h2>
+      <div class="table-scroll">
+        <table class="summary">
+          <thead>
+            <tr>
+              <th>Funcionário</th><th>Folgas</th><th>Faltas</th><th>Atestados</th>
+              <th>Abono</th><th>DSR</th><th>Dias Trab.</th><th>Total Dias</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in summary.rows %}
+            <tr>
+              <td class="name">{{ r.nome }}</td>
+              <td>{{ r.c.Folga }}</td><td>{{ r.c.Falta }}</td><td>{{ r.c.Atestado }}</td>
+              <td>{{ r.c.Abono }}</td><td>{{ r.c.DSR }}</td><td>{{ r.c.T }}</td>
+              <td>{{ r.total }}</td>
+              <td><span class="status-pill {{ r.status }}">{{ r.status }}</span></td>
+            </tr>
+            {% endfor %}
+            <tr class="total">
+              <td class="name">TOTAL</td>
+              <td>{{ summary.totals.Folga }}</td><td>{{ summary.totals.Falta }}</td>
+              <td>{{ summary.totals.Atestado }}</td><td>{{ summary.totals.Abono }}</td>
+              <td>{{ summary.totals.DSR }}</td><td>{{ summary.totals.T }}</td>
+              <td>{{ summary.total_days * summary.rows|length }}</td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <footer>Escala Blitz — ferramenta interna, DC-PI2</footer>
+</div>
+</body>
+</html>
